@@ -1,0 +1,25 @@
+{
+  "feature_names": [
+    "taxonomic_delta",
+    "contribution_bias",
+    "sequential_offset",
+    "lexical_subsumption",
+    "ref_d",
+    "co_occurrence"
+  ],
+  "weights": [
+    1.1936613138137175,
+    0.07401303404531452,
+    1.1936613138137175,
+    0.0,
+    0.4808336525971529,
+    0.14455955962534264
+  ],
+  "bias": 0.49303378524631336,
+  "metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  }
+}

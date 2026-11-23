@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <!-- Notice intentional test: ACM copyright disclaimer preceding the real title element -->
+        <note type="license">Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit.</note>
+        <title level="a" type="main">Cognitive Radio Spectrum Sensing and Jamming Cancellation via Oblique Projection and GLRT</title>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>IEEE Transactions on Signal Processing</publisher>
+        <date when="2021">2021</date>
+      </publicationStmt>
+      <sourceDesc>
+        <biblStruct>
+          <analytic>
+            <title level="a" type="main">Cognitive Radio Spectrum Sensing and Jamming Cancellation via Oblique Projection and GLRT</title>
+            <author><persName>A. Sharma</persName></author>
+            <author><persName>J. Valenzuela</persName></author>
+          </analytic>
+          <monogr>
+            <title level="j">IEEE Transactions on Signal Processing</title>
+            <imprint><date>2021</date></imprint>
+          </monogr>
+        </biblStruct>
+      </sourceDesc>
+    </fileDesc>
+    <profileDesc>
+      <abstract>
+        <p>In this paper, we propose Oblique Projection-Based Jamming Cancellation (OPJC) combined with the Generalized Likelihood Ratio Test (GLRT) for robust spectrum sensing in cognitive radio networks. We formulate the signal model in multi-dimensional subspaces derived from linear algebra and covariance matrices. Under intentional adversarial jamming, oblique projection operators separate the desired signal subspace from the interference subspace. The detection performance is analyzed using binary hypothesis testing.</p>
+      </abstract>
+    </profileDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <div n="1">
+        <head>1. Introduction</head>
+        <p>Cognitive Radio enables opportunistic spectrum access for secondary users by dynamically monitoring frequency bands through Spectrum Sensing <ref type="bibr" target="#b0">[1]</ref>. However, Physical Layer Security is severely threatened when adversarial jammers emit high-power interference. Jamming Cancellation is essential to maintain communication reliability.</p>
+      </div>
+      <div n="2">
+        <head>2. Preliminaries and System Model</head>
+        <p>Foundations in Linear Algebra and vector Subspaces provide the structural basis for modern signal processing. Consider an N-dimensional complex space decomposed into signal subspace S and interference subspace R.</p>
+        <p>The sample covariance matrix of the received observation vector is computed from statistical expectations:</p>
+        <formula xml:id="formula_1" latex="R_{xx} = \frac{1}{M} \sum_{m=1}^M x[m] x^H[m]">R_{xx} = (1/M) \sum x[m] x^H[m]</formula>
+        <p>An Oblique Projection operator E_sr projects along the interference subspace R onto the signal subspace S:</p>
+        <formula xml:id="formula_2" latex="E_{sr} = S (S^H P_R^\perp S)^{-1} S^H P_R^\perp">E_{sr} = S (S^H P_R^\perp S)^{-1} S^H P_R^\perp</formula>
+        <p>Here P_R denotes the Orthogonal Projection operator onto subspace R, and E_sr removes all jamming components while preserving signal structure.</p>
+      </div>
+      <div n="3">
+        <head>3. Detection via Hypothesis Testing and GLRT</head>
+        <p>Spectrum sensing is formulated as binary Hypothesis Testing between null hypothesis H0 (idle channel) and alternative hypothesis H1 (primary user active). Because noise variance is unknown, we derive the GLRT decision statistic:</p>
+        <formula xml:id="formula_3" latex="\Lambda(y) = \frac{\max_{\theta_1} p(y | H_1, \theta_1)}{\max_{\theta_0} p(y | H_0, \theta_0)} > \gamma">\Lambda(y) = max p(y|H1) / max p(y|H0) > \gamma</formula>
+        <p>The GLRT detector achieves optimal asymptotic detection probability under generalized likelihood ratio criteria <ref type="bibr" target="#b1">[2]</ref>.</p>
+      </div>
+      <div n="4">
+        <head>4. Proposed Methodology: Oblique Projection-Based Jamming Cancellation</head>
+        <p>We propose Oblique Projection-Based Jamming Cancellation (OPJC). Jamming cancellation is achieved via oblique projection operator E_sr by nulling the interference subspace prior to evaluating the GLRT statistic. This eliminates interference while ensuring full detection sensitivity.</p>
+      </div>
+    </body>
+    <back>
+      <div type="references">
+        <listBibl>
+          <biblStruct xml:id="b0">
+            <analytic>
+              <title level="a">Cognitive Radio: Making Software Radios More Personal</title>
+              <author><persName>J. Mitola</persName></author>
+            </analytic>
+            <monogr>
+              <title level="j">IEEE Personal Communications</title>
+              <imprint><date>1999</date></imprint>
+            </monogr>
+          </biblStruct>
+          <biblStruct xml:id="b1">
+            <analytic>
+              <title level="a">Fundamentals of Statistical Signal Processing: Detection Theory</title>
+              <author><persName>S. M. Kay</persName></author>
+            </analytic>
+            <monogr>
+              <title level="j">Prentice Hall</title>
+              <imprint><date>1998</date></imprint>
+            </monogr>
+          </biblStruct>
+          <biblStruct xml:id="b2">
+            <analytic>
+              <title level="a">Oblique Projections in Signal Processing</title>
+              <author><persName>R. T. Behrens</persName></author>
+              <author><persName>L. L. Scharf</persName></author>
+            </analytic>
+            <monogr>
+              <title level="j">IEEE Transactions on Signal Processing</title>
+              <imprint><date>1994</date></imprint>
+            </monogr>
+          </biblStruct>
+        </listBibl>
+      </div>
+    </back>
+  </text>
+</TEI>

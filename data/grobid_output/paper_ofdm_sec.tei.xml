@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title level="a" type="main">Physical Layer Security in Multicarrier OFDM Systems using Convex Optimization</title>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>IEEE Journal on Selected Areas in Communications</publisher>
+        <date when="2020">2020</date>
+      </publicationStmt>
+      <sourceDesc>
+        <biblStruct>
+          <analytic>
+            <title level="a" type="main">Physical Layer Security in Multicarrier OFDM Systems using Convex Optimization</title>
+            <author><persName>L. Chen</persName></author>
+            <author><persName>R. Zhang</persName></author>
+          </analytic>
+          <monogr>
+            <title level="j">IEEE JSAC</title>
+            <imprint><date>2020</date></imprint>
+          </monogr>
+        </biblStruct>
+      </sourceDesc>
+    </fileDesc>
+    <profileDesc>
+      <abstract>
+        <p>In this paper, we propose Secure Optimal Subcarrier Power Allocation (SOSPA) for multicarrier OFDM transmissions. To protect communications against eavesdropping, we apply Physical Layer Security principles rooted in Information Theory. The transmitter employs Inverse Fast Fourier Transform (IFFT) to synthesize orthogonal subcarriers. We formulate secrecy rate maximization as a Convex Optimization problem solved via Gradient Descent.</p>
+      </abstract>
+    </profileDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <div n="1">
+        <head>1. Introduction</head>
+        <p>Information Theory establishes the fundamental limits of secure wireless communications through Physical Layer Security <ref type="bibr" target="#b0">[1]</ref>. In multicarrier communications, OFDM provides high spectral efficiency and robustness against multipath fading.</p>
+      </div>
+      <div n="2">
+        <head>2. Signal Model and Frequency Transform</head>
+        <p>The continuous Fourier Transform underlies discrete multicarrier representations. At the transmitter, the IFFT algorithm modulates frequency domain data symbols into time-domain orthogonal waveforms:</p>
+        <formula xml:id="formula_1" latex="x[n] = \frac{1}{\sqrt{N}} \sum_{k=0}^{N-1} X[k] e^{j 2 \pi k n / N}">x[n] = (1/\sqrt{N}) \sum X[k] e^{j 2 \pi kn / N}</formula>
+        <p>At the receiver, the FFT algorithm recovers the original symbols from the received signal.</p>
+      </div>
+      <div n="3">
+        <head>3. Power Allocation via Convex Optimization</head>
+        <p>The secrecy rate allocation over N subcarriers is formulated as a Convex Optimization problem subject to total power budget P_total:</p>
+        <formula xml:id="formula_2" latex="\max_{p_k \ge 0} \sum_{k=1}^N \left[ \log_2(1 + \gamma_k^B p_k) - \log_2(1 + \gamma_k^E p_k) \right] \quad \text{s.t.} \quad \sum_{k=1}^N p_k \le P_{\text{total}}">\max \sum [ \log_2(1 + \gamma_B p) - \log_2(1 + \gamma_E p) ] s.t. \sum p \le P_total</formula>
+        <p>Because the objective function is concave over feasible subcarrier channels, iterative Gradient Descent converges monotonically to the global optimum <ref type="bibr" target="#b1">[2]</ref>.</p>
+      </div>
+      <div n="4">
+        <head>4. Proposed Methodology: Secure Optimal Subcarrier Power Allocation</head>
+        <p>We propose Secure Optimal Subcarrier Power Allocation (SOSPA). Subcarriers where legitimate channel gain exceeds eavesdropper channel gain are allocated transmit power according to water-filling principles derived from convex optimization.</p>
+      </div>
+    </body>
+    <back>
+      <div type="references">
+        <listBibl>
+          <biblStruct xml:id="b0">
+            <analytic>
+              <title level="a">The Wire-Tap Channel</title>
+              <author><persName>A. D. Wyner</persName></author>
+            </analytic>
+            <monogr>
+              <title level="j">Bell System Technical Journal</title>
+              <imprint><date>1975</date></imprint>
+            </monogr>
+          </biblStruct>
+          <biblStruct xml:id="b1">
+            <analytic>
+              <title level="a">Convex Optimization</title>
+              <author><persName>S. Boyd</persName></author>
+              <author><persName>L. Vandenberghe</persName></author>
+            </analytic>
+            <monogr>
+              <title level="j">Cambridge University Press</title>
+              <imprint><date>2004</date></imprint>
+            </monogr>
+          </biblStruct>
+        </listBibl>
+      </div>
+    </back>
+  </text>
+</TEI>

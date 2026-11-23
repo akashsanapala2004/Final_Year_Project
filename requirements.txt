@@ -1,0 +1,8 @@
+# Scientific Prerequisite Concept Extraction & Knowledge Graph System
+# Core requirements are 100% pure Python standard library (Python >= 3.8)
+# Zero external heavy dependencies needed to execute the pipeline or test suite.
+
+# Optional development & linting packages:
+# pytest>=7.0.0
+# mypy>=1.0.0
+# flake8>=5.0.0

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title level="a" type="main">Hypergraph Reduction via Hypertree Decomposition and Case-Based Reasoning</title>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>Journal of Artificial Intelligence Research</publisher>
+        <date when="2022">2022</date>
+      </publicationStmt>
+      <sourceDesc>
+        <biblStruct>
+          <analytic>
+            <title level="a" type="main">Hypergraph Reduction via Hypertree Decomposition and Case-Based Reasoning</title>
+            <author><persName>E. Vance</persName></author>
+            <author><persName>G. Gottlob</persName></author>
+          </analytic>
+          <monogr>
+            <title level="j">JAIR</title>
+            <imprint><date>2022</date></imprint>
+          </monogr>
+        </biblStruct>
+      </sourceDesc>
+    </fileDesc>
+    <profileDesc>
+      <abstract>
+        <p>In this paper, we propose Hypertree Decomposition-Based Hypergraph Reduction (HD-HR) augmented by Case-Based Reasoning (CBR). Large hypergraph structures in combinatorial optimization represent NP-complete computational complexity problems. By leveraging Graph Theory and structural tree width bounds, our approach extracts tree projections to solve intractable constraint satisfaction problems efficiently.</p>
+      </abstract>
+    </profileDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <div n="1">
+        <head>1. Introduction and Complexity Background</head>
+        <p>Constraint satisfaction and combinatorial optimization problems often exhibit intractable Computational Complexity, categorized as NP-complete <ref type="bibr" target="#b0">[1]</ref>. Graph Theory provides formal foundations for analyzing relational structures.</p>
+      </div>
+      <div n="2">
+        <head>2. Structural Graph Foundations</head>
+        <p>A hypergraph is formalized as a vertex and hyperedge system:</p>
+        <formula xml:id="formula_1" latex="\mathcal{H} = (V, E)">\mathcal{H} = (V, E)</formula>
+        <p>Standard Graph Traversal algorithms such as depth-first search (DFS) fail on cyclic hypergraphs. Instead, Hypertree Decomposition partitions vertices into acyclic generalized tree nodes with bounded hypertree width.</p>
+      </div>
+      <div n="3">
+        <head>3. Case-Based Reasoning Integration</head>
+        <p>Case-Based Reasoning (CBR) retrieves past successful decomposition topologies from an indexed knowledge base <ref type="bibr" target="#b1">[2]</ref>. Rather than computing decompositions from scratch, CBR guides subproblem solving.</p>
+      </div>
+      <div n="4">
+        <head>4. Proposed Methodology: Hypertree Decomposition-Based Hypergraph Reduction</head>
+        <p>We propose Hypertree Decomposition-Based Hypergraph Reduction. Hypergraph Reduction prunes redundant hyperedges while preserving satisfiability. The hypertree decomposition structure guarantees polynomial-time evaluation.</p>
+      </div>
+    </body>
+    <back>
+      <div type="references">
+        <listBibl>
+          <biblStruct xml:id="b0">
+            <analytic>
+              <title level="a">Hypertree Decompositions and Tractable Queries</title>
+              <author><persName>G. Gottlob</persName></author>
+              <author><persName>N. Leone</persName></author>
+            </analytic>
+            <monogr>
+              <title level="j">Journal of Computer and System Sciences</title>
+              <imprint><date>2002</date></imprint>
+            </monogr>
+          </biblStruct>
+          <biblStruct xml:id="b1">
+            <analytic>
+              <title level="a">Case-Based Reasoning: Foundational Issues</title>
+              <author><persName>A. Aamodt</persName></author>
+              <author><persName>E. Plaza</persName></author>
+            </analytic>
+            <monogr>
+              <title level="j">AI Communications</title>
+              <imprint><date>1994</date></imprint>
+            </monogr>
+          </biblStruct>
+        </listBibl>
+      </div>
+    </back>
+  </text>
+</TEI>
