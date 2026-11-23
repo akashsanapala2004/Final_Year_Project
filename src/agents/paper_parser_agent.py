@@ -80,9 +80,13 @@ class PaperParserAgent:
         self.grobid_dir = self.data_dir / "grobid_output"
 
     def resolve_path(self, paper_input: Union[str, Path]) -> Path:
-        """Resolve paper input to an existing XML file."""
+        """Resolve paper input to an existing XML file, converting from PDF if needed."""
         p = Path(paper_input)
         if p.is_file():
+            if p.suffix.lower() == ".pdf":
+                from src.utils.pdf_grobid_converter import PDFGrobidConverter
+                converter = PDFGrobidConverter(output_dir=self.grobid_dir)
+                return converter.convert_pdf_to_tei(p)
             return p
 
         # Check in grobid_dir
@@ -99,7 +103,20 @@ class PaperParserAgent:
             if c.is_file():
                 return c
 
-        raise FileNotFoundError(f"Could not resolve paper XML for input: {paper_input}")
+        # Check if corresponding PDF exists in raw_pdfs
+        pdf_candidates = [
+            self.data_dir / "raw_pdfs" / str(paper_input),
+            self.data_dir / "raw_pdfs" / f"{paper_input}.pdf",
+            self.data_dir / "raw_pdfs" / f"{p.stem}.pdf",
+            Path(f"data/raw_pdfs/{paper_input}.pdf"),
+        ]
+        for pdf_c in pdf_candidates:
+            if pdf_c.is_file():
+                from src.utils.pdf_grobid_converter import PDFGrobidConverter
+                converter = PDFGrobidConverter(output_dir=self.grobid_dir)
+                return converter.convert_pdf_to_tei(pdf_c)
+
+        raise FileNotFoundError(f"Could not resolve paper XML or PDF for input: {paper_input}")
 
     def parse(self, paper_input: Union[str, Path]) -> DocumentIR:
         """Parse GROBID TEI-XML or raw XML text into DocumentIR."""

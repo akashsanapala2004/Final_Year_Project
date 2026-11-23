@@ -137,6 +137,26 @@ class TestCLIExecution(unittest.TestCase):
         # Pre-process all papers so query catalog tests have populated data
         subprocess.run([sys.executable, "run.py", "--all"], capture_output=True, text=True)
 
+    def test_cli_convert_pdfs(self):
+        """Verify python3 run.py --convert-pdfs converts raw PDFs in data/raw_pdfs."""
+        from src.utils.pdf_grobid_converter import generate_valid_pdf
+
+        temp_pdf = Path("data/raw_pdfs/cli_test_paper.pdf")
+        self.addCleanup(lambda: temp_pdf.unlink(missing_ok=True))
+        temp_tei = Path("data/grobid_output/cli_test_paper.tei.xml")
+        self.addCleanup(lambda: temp_tei.unlink(missing_ok=True))
+
+        generate_valid_pdf(
+            title="Convex Optimization and Lagrangian Duality",
+            sections=[("1. Introduction", ["Convex optimization guarantees unique global minima."])],
+            output_path=temp_pdf,
+        )
+
+        res = subprocess.run([sys.executable, "run.py", "--convert-pdfs"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("CONVERTING RAW PDFS", res.stdout)
+        self.assertTrue(temp_tei.is_file())
+
     def test_cli_run_list(self):
         """Verify python3 run.py --list reports paper library status."""
         res = subprocess.run([sys.executable, "run.py", "--list"], capture_output=True, text=True)

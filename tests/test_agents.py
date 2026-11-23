@@ -93,6 +93,31 @@ class TestPaperParserAgent(unittest.TestCase):
         self.assertEqual(doc.citations["b0"]["authors"][0], "J. Mitola")
         self.assertEqual(doc.citations["b1"]["authors"][0], "S. M. Kay")
 
+    def test_pdf_to_grobid_conversion_and_parsing(self):
+        """Verify automatic conversion of raw PDF to GROBID TEI-XML and DocumentIR parsing."""
+        from src.utils.pdf_grobid_converter import generate_valid_pdf
+
+        temp_pdf = Path("data/raw_pdfs/temp_speech_recognition.pdf")
+        self.addCleanup(lambda: temp_pdf.unlink(missing_ok=True))
+        temp_tei = Path("data/grobid_output/temp_speech_recognition.tei.xml")
+        self.addCleanup(lambda: temp_tei.unlink(missing_ok=True))
+
+        generate_valid_pdf(
+            title="Speech Recognition via Hidden Markov Models and Viterbi Algorithm",
+            sections=[
+                ("1. Introduction", ["Speech recognition models acoustic features via Hidden Markov Models."]),
+                ("2. Mathematical Foundations", ["Probability distributions and Bayesian inference form the basis."]),
+                ("3. Methodology", ["Viterbi decoding determines the optimal state sequence."]),
+            ],
+            output_path=temp_pdf,
+        )
+
+        doc = self.parser.parse(temp_pdf)
+        self.assertEqual(doc.paper_id, "temp_speech_recognition")
+        self.assertIn("Speech Recognition", doc.title)
+        self.assertTrue(len(doc.sections) >= 2)
+        self.assertTrue(temp_tei.is_file())
+
 
 class TestCSOOntology(unittest.TestCase):
     """Computer Science Ontology (CSO.3.3.owl) Verification Tests."""

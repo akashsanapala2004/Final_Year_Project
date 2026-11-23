@@ -102,7 +102,10 @@ class BatchTrainer:
         print(f"STARTING BATCH TRAINING PIPELINE (Max CPU Workers: {self.max_workers})")
         print("=" * 80)
 
-        # 1. Discover all candidate papers
+        # 1. Concurrent GROBID conversions of raw PDFs using ThreadPoolExecutor
+        self._convert_raw_pdfs()
+
+        # 2. Discover all candidate papers
         paper_inputs = self._discover_papers()
         if limit:
             paper_inputs = paper_inputs[:limit]
@@ -200,6 +203,18 @@ class BatchTrainer:
         print("=" * 80)
 
         return catalog
+
+    def _convert_raw_pdfs(self) -> None:
+        """Concurrent GROBID conversions of raw PDFs using ThreadPoolExecutor."""
+        from src.utils.pdf_grobid_converter import PDFGrobidConverter
+        converter = PDFGrobidConverter(output_dir=self.data_dir / "grobid_output")
+        raw_pdf_dir = self.data_dir / "raw_pdfs"
+        if raw_pdf_dir.is_dir():
+            pdfs = list(raw_pdf_dir.glob("*.pdf"))
+            if pdfs:
+                print(f"Converting {len(pdfs)} raw PDFs via ThreadPoolExecutor...")
+                converted = converter.convert_all_raw_pdfs(raw_pdf_dir, max_workers=self.max_workers)
+                print(f"✓ Converted {len(converted)} raw PDFs to GROBID TEI-XML format.")
 
     def _discover_papers(self) -> List[str]:
         """Find all XML and PDF files in data directories."""

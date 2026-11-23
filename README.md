@@ -152,15 +152,25 @@ final_yr_project/
 The system runs out-of-the-box using standard Python 3.8+:
 
 ### 1. Single Paper Execution
-Run the full 6-stage multi-agent pipeline on a paper ID or XML file path:
+Run the full 6-stage multi-agent pipeline on a paper ID, XML file path, or raw PDF:
 ```bash
+# Run on an existing TEI-XML paper:
 python3 run.py --input paper_opjc
+
+# Run directly on a raw PDF (automatically converts to GROBID TEI-XML first):
+python3 run.py --input data/raw_pdfs/sample_paper_viterbi.pdf
 ```
 
 Outputs generated:
-- `output/paper_opjc_prerequisite_curriculum.json`
-- `output/paper_opjc_curriculum_report.md`
-- `output/paper_opjc_graph.mmd`
+- `output/<id>_prerequisite_curriculum.json`
+- `output/<id>_curriculum_report.md`
+- `output/<id>_graph.mmd`
+
+### 2. Raw PDF Batch Conversion
+Batch convert all raw PDFs in `data/raw_pdfs/` to GROBID TEI-XML format:
+```bash
+python3 run.py --convert-pdfs
+```
 
 ### 2. Library Listing & Batch Runner
 List all available papers in the library and their processed status:

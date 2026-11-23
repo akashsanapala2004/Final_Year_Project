@@ -26,7 +26,12 @@ class MermaidGraphExporter:
     def __init__(self) -> None:
         pass
 
-    def export(self, dag: PrerequisiteDAG, plan: Optional[CurriculumPlan] = None) -> str:
+    def export(
+        self,
+        dag: PrerequisiteDAG,
+        plan: Optional[CurriculumPlan] = None,
+        include_scores: bool = False,
+    ) -> str:
         """Generate Mermaid flowchart string with tiered subgraphs and color styling."""
         lines: List[str] = ["flowchart TD"]
 
@@ -41,7 +46,7 @@ class MermaidGraphExporter:
         lines.append("    %% Styling Definitions")
         lines.append("    classDef tier1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1;")
         lines.append("    classDef tier2 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;")
-        lines.append("    classDef tier3 fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#E65100;")
+        lines.append("    classDef tier3 fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#9A3412;")
         lines.append("    classDef tier4 fill:#FCE4EC,stroke:#C2185B,stroke-width:3px,color:#880E4F;")
 
         # Nodes grouped into subgraphs if plan is available
@@ -64,13 +69,13 @@ class MermaidGraphExporter:
                 lines.append(f'    {node_id}["{label}"]:::tier{tier_idx}')
 
         lines.append("")
-        lines.append("    %% Prerequisite Dependency Edges")
+        lines.append("    %% Prerequisite Dependency Edges (Clean directed arrows)")
 
-        # Edges
+        # Edges (without extra score badges between nodes)
         for edge in dag.edges:
             src_id = _clean_mermaid_id(edge.source_id)
             tgt_id = _clean_mermaid_id(edge.target_id)
-            if edge.asymmetry_score > 0:
+            if include_scores and edge.asymmetry_score > 0:
                 score_str = f"asym: {edge.asymmetry_score:.2f}"
                 lines.append(f'    {src_id} -->|"{score_str}"| {tgt_id}')
             else:

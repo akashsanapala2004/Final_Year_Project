@@ -49,6 +49,9 @@ def main() -> int:
         "--all", "-a", action="store_true", help="Process all available papers in data directory"
     )
     parser.add_argument(
+        "--convert-pdfs", action="store_true", help="Convert raw PDFs in data/raw_pdfs to GROBID TEI-XML"
+    )
+    parser.add_argument(
         "--data-dir", type=str, default="data", help="Directory containing input data"
     )
     parser.add_argument(
@@ -60,6 +63,18 @@ def main() -> int:
     output_path = Path(args.output_dir)
 
     orchestrator = PipelineOrchestrator(data_dir=data_path, output_dir=output_path)
+
+    if args.convert_pdfs:
+        from src.utils.pdf_grobid_converter import PDFGrobidConverter
+        converter = PDFGrobidConverter(output_dir=data_path / "grobid_output")
+        pdf_dir = data_path / "raw_pdfs"
+        print("=" * 70)
+        print("CONVERTING RAW PDFS TO GROBID TEI-XML FORMAT...")
+        print("=" * 70)
+        converted = converter.convert_all_raw_pdfs(pdf_dir)
+        print(f"✓ Completed: Converted {len(converted)} PDFs into {data_path / 'grobid_output'}")
+        print("=" * 70)
+        return 0
 
     if args.list:
         papers = get_available_paper_ids(data_path)

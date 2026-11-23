@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Prerequisite DAG Visualizer</title>
+    <!-- Mermaid CDN (v10) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --panel-bg: rgba(23, 32, 51, 0.96);
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --tier1-color: #0D47A1;
+            --tier1-border: #1565C0;
+            --tier1-bg: #E3F2FD;
+            --tier2-color: #1B5E20;
+            --tier2-border: #2E7D32;
+            --tier2-bg: #E8F5E9;
+            --tier3-color: #9A3412;
+            --tier3-border: #EA580C;
+            --tier3-bg: #FFF3E0;
+            --tier4-color: #880E4F;
+            --tier4-border: #C2185B;
+            --tier4-bg: #FCE4EC;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        /* Top Navigation Header */
+        header {
+            height: 64px;
+            width: 100vw;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            z-index: 50;
+            position: relative;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .active-file-badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            max-width: 320px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Controls Section */
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            background: #253349;
+            color: #f1f5f9;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.15s ease-in-out;
+            user-select: none;
+        }
+
+        .btn:hover {
+            background: #334460;
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary {
+            background: #0284c7;
+            border-color: #0369a1;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #0ea5e9;
+            border-color: #38bdf8;
+        }
+
+        select {
+            background: #1e293b;
+            color: #f1f5f9;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            max-width: 340px;
+        }
+
+        select:focus {
+            border-color: var(--accent);
+        }
+
+        /* Legend strip */
+        .legend-bar {
+            height: 38px;
+            width: 100vw;
+            background: #0d1322;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2.2rem;
+            font-size: 0.82rem;
+            z-index: 40;
+            position: relative;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-weight: 600;
+        }
+
+        .badge-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+
+        .badge-t1 { background: var(--tier1-bg); border: 2px solid var(--tier1-border); }
+        .badge-t2 { background: var(--tier2-bg); border: 2px solid var(--tier2-border); }
+        .badge-t3 { background: var(--tier3-bg); border: 2px solid var(--tier3-border); }
+        .badge-t4 { background: var(--tier4-bg); border: 2.5px solid var(--tier4-border); }
+
+        /* Full-Width Canvas Viewport */
+        #viewport {
+            width: 100vw;
+            height: calc(100vh - 102px);
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+            background: radial-gradient(circle at center, #172033 0%, #090d16 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        /* Pan & Zoom Target Layer */
+        #graph-transform-layer {
+            position: relative;
+            transform-origin: center center;
+            transition: transform 0.04s ease-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+            will-change: transform;
+        }
+
+        #mermaid-output {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 2.5rem 3.5rem;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.65);
+            display: inline-block;
+            color: #0f172a;
+        }
+
+        /* Essential Mermaid Sizing Rules */
+        #mermaid-output svg {
+            display: block;
+            margin: 0 auto;
+            max-width: none !important;
+            height: auto !important;
+        }
+
+        /* ======================================================== */
+        /* BULLETPROOF NODE, TEXT, AND CLUSTER FORMATTING           */
+        /* ======================================================== */
+
+        /* Node Box Rectangles - Horizontal Cards */
+        .node rect,
+        .node polygon,
+        .node circle,
+        .node path {
+            stroke-width: 2.5px !important;
+            rx: 8px !important;
+            ry: 8px !important;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08)) !important;
+        }
+
+        /* Node Text Styling - Mathematically Locked at Dead Center */
+        .node text,
+        .node tspan,
+        .node .nodeLabel {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.01em !important;
+            text-anchor: middle !important;
+            dominant-baseline: central !important;
+        }
+
+        /* Tier 1: Foundational Mathematics (Navy on Soft Blue) */
+        .node.tier1 rect {
+            fill: #E3F2FD !important;
+            stroke: #1565C0 !important;
+        }
+        .node.tier1 text,
+        .node.tier1 tspan,
+        .node.tier1 .nodeLabel {
+            fill: #0D47A1 !important;
+            color: #0D47A1 !important;
+            font-weight: 700 !important;
+        }
+
+        /* Tier 2: Algorithmic Foundations (Forest Green on Soft Green) */
+        .node.tier2 rect {
+            fill: #E8F5E9 !important;
+            stroke: #2E7D32 !important;
+        }
+        .node.tier2 text,
+        .node.tier2 tspan,
+        .node.tier2 .nodeLabel {
+            fill: #1B5E20 !important;
+            color: #1B5E20 !important;
+            font-weight: 700 !important;
+        }
+
+        /* Tier 3: Domain Concepts & Setting (Dark Russet on Soft Amber) */
+        .node.tier3 rect {
+            fill: #FFF3E0 !important;
+            stroke: #EA580C !important;
+        }
+        .node.tier3 text,
+        .node.tier3 tspan,
+        .node.tier3 .nodeLabel {
+            fill: #9A3412 !important;
+            color: #9A3412 !important;
+            font-weight: 700 !important;
+        }
+
+        /* Tier 4: Target Paper Contributions (Deep Ruby on Soft Pink) */
+        .node.tier4 rect {
+            fill: #FCE4EC !important;
+            stroke: #C2185B !important;
+            stroke-width: 3px !important;
+        }
+        .node.tier4 text,
+        .node.tier4 tspan,
+        .node.tier4 .nodeLabel {
+            fill: #880E4F !important;
+            color: #880E4F !important;
+            font-weight: 800 !important;
+        }
+
+        /* Subgraph Cluster Cards */
+        .cluster rect {
+            rx: 12px !important;
+            ry: 12px !important;
+            stroke-width: 2px !important;
+            stroke-dasharray: 6 4 !important;
+            fill: #f8fafc !important;
+            stroke: #cbd5e1 !important;
+        }
+
+        #Tier1 rect { fill: #f8fbff !important; stroke: #93c5fd !important; }
+        #Tier2 rect { fill: #f8fdf9 !important; stroke: #86efac !important; }
+        #Tier3 rect { fill: #fffdfa !important; stroke: #fdba74 !important; }
+        #Tier4 rect { fill: #fdf8fb !important; stroke: #f472b6 !important; }
+
+        /* Cluster Title Text */
+        .cluster text,
+        .cluster .cluster-label text,
+        .cluster .nodeLabel {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
+            font-size: 13.5px !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+            dominant-baseline: central !important;
+        }
+
+        #Tier1 text, #Tier1 .cluster-label text { fill: #1565C0 !important; }
+        #Tier2 text, #Tier2 .cluster-label text { fill: #2E7D32 !important; }
+        #Tier3 text, #Tier3 .cluster-label text { fill: #EA580C !important; }
+        #Tier4 text, #Tier4 .cluster-label text { fill: #BE185D !important; }
+
+        /* Dependency Edge Lines and Arrows */
+        .edgePath path.path {
+            stroke: #64748b !important;
+            stroke-width: 2px !important;
+        }
+
+        .edgePath marker path {
+            fill: #64748b !important;
+            stroke: #64748b !important;
+        }
+
+        /* Edge Labels - Completely hidden to keep space between nodes 100% clean and clutter-free */
+        .edgeLabel,
+        .edgeLabel rect,
+        .edgeLabel text,
+        .edgeLabel tspan,
+        .edgeLabel span,
+        .edgeLabel foreignObject {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+
+        /* Floating Viewport HUD Controls */
+        .hud-controls {
+            position: absolute;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.4rem;
+            display: flex;
+            gap: 0.35rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            z-index: 45;
+        }
+
+        .hud-btn {
+            background: #334155;
+            color: #f8fafc;
+            border: 1px solid var(--border-color);
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.15rem;
+            font-weight: 700;
+            transition: all 0.15s ease;
+        }
+
+        .hud-btn:hover {
+            background: #475569;
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        /* Slide-out Code Drawer */
+        #code-drawer {
+            position: fixed;
+            top: 64px;
+            right: -620px;
+            width: 600px;
+            height: calc(100vh - 64px);
+            background: #0f172a;
+            border-left: 1px solid var(--border-color);
+            z-index: 60;
+            box-shadow: -15px 0 35px rgba(0, 0, 0, 0.5);
+            transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #code-drawer.open {
+            right: 0;
+        }
+
+        .drawer-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+        }
+
+        .drawer-header h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        #mmd-editor {
+            flex: 1;
+            width: 100%;
+            background: #0b0f19;
+            color: #e2e8f0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            padding: 1rem;
+            border: none;
+            resize: none;
+            outline: none;
+        }
+
+        .drawer-footer {
+            padding: 0.85rem 1.25rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            background: #1e293b;
+        }
+
+        /* Drag and Drop Overlay */
+        #drop-indicator {
+            position: absolute;
+            inset: 2rem;
+            border: 3px dashed var(--accent);
+            border-radius: 12px;
+            background: rgba(56, 189, 248, 0.08);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 48;
+            pointer-events: none;
+        }
+
+        #drop-indicator span {
+            background: var(--panel-bg);
+            border: 1px solid var(--accent);
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* Notification Toast */
+        #toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid var(--accent);
+            padding: 0.6rem 1.4rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            z-index: 70;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Bar -->
+    <header>
+        <div class="brand-section">
+            <h1>
+                <span>🌐</span> Scientific Prerequisite DAG Visualizer
+            </h1>
+            <div id="active-filename" class="active-file-badge">Loading...</div>
+        </div>
+
+        <div class="controls-group">
+            <!-- Dropdown selector of pre-generated MMD files -->
+            <label for="preloaded-select" style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">Paper Graph:</label>
+            <select id="preloaded-select" onchange="onSelectPreloadedFile()">
+                <option value="paper_opjc_graph.mmd">paper_opjc_graph.mmd (Cognitive Radio & OPJC)</option>
+                <option value="paper_ofdm_sec_graph.mmd">paper_ofdm_sec_graph.mmd (OFDM Physical Security)</option>
+                <option value="paper_hypergraph_graph.mmd" selected>paper_hypergraph_graph.mmd (Hypertree & CBR)</option>
+                <option value="sample_paper_viterbi_graph.mmd">sample_paper_viterbi_graph.mmd (Viterbi & HMM)</option>
+            </select>
+
+            <!-- File Input to choose ANY .mmd file from disk -->
+            <input type="file" id="file-picker" accept=".mmd,.txt,.md" style="display: none;" onchange="onLocalFileChosen(event)">
+            <button class="btn btn-primary" onclick="document.getElementById('file-picker').click()">
+                <span>📂</span> Choose .mmd File...
+            </button>
+
+            <!-- Toggle Code Drawer -->
+            <button class="btn" onclick="toggleCodeDrawer()">
+                <span>📝</span> View / Edit MMD Code
+            </button>
+
+            <!-- Fullscreen Toggle -->
+            <button class="btn" onclick="toggleFullScreen()">
+                <span>⛶</span> Full Screen
+            </button>
+        </div>
+    </header>
+
+    <!-- Legend Bar -->
+    <div class="legend-bar">
+        <span style="color: var(--text-muted); font-weight: 700;">Topological Tiers:</span>
+        <div class="legend-item"><span class="badge-dot badge-t1"></span> Tier 1: Foundational Mathematics</div>
+        <div class="legend-item"><span class="badge-dot badge-t2"></span> Tier 2: Algorithmic Foundations</div>
+        <div class="legend-item"><span class="badge-dot badge-t3"></span> Tier 3: Domain Setting & Theories</div>
+        <div class="legend-item"><span class="badge-dot badge-t4"></span> Tier 4: Target Paper Innovations</div>
+        <span style="color: var(--text-muted); margin-left: 1.5rem; font-weight: 500;">| Scroll to Zoom • Drag to Pan Canvas</span>
+    </div>
+
+    <!-- Wide Screen Viewport Canvas -->
+    <div id="viewport">
+        <div id="graph-transform-layer">
+            <div id="mermaid-output"></div>
+        </div>
+
+        <!-- Floating Pan & Zoom HUD -->
+        <div class="hud-controls">
+            <button class="hud-btn" title="Zoom In" onclick="zoom(0.2)">+</button>
+            <button class="hud-btn" title="Zoom Out" onclick="zoom(-0.2)">−</button>
+            <button class="hud-btn" title="Fit to Screen" onclick="fitToScreen()">⊡</button>
+            <button class="hud-btn" title="Reset View (100%)" onclick="resetTransform()">↺</button>
+        </div>
+
+        <!-- Drag & Drop Indicator -->
+        <div id="drop-indicator">
+            <span>Drop .mmd File Here to Display Immediately</span>
+        </div>
+    </div>
+
+    <!-- Collapsible Code Drawer -->
+    <div id="code-drawer">
+        <div class="drawer-header">
+            <h3>Mermaid MMD Source Code</h3>
+            <button class="btn" style="padding: 0.2rem 0.5rem;" onclick="toggleCodeDrawer()">✕</button>
+        </div>
+        <textarea id="mmd-editor" spellcheck="false"></textarea>
+        <div class="drawer-footer">
+            <button class="btn" onclick="copyMMDCode()">📋 Copy</button>
+            <button class="btn btn-primary" onclick="renderCustomCode()">▶ Render Graph</button>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast"></div>
+
+    <script>
+        // Embedded MMD File Library
+        const preloadedFiles = {
+            "paper_opjc_graph.mmd": `flowchart TD
+    %% Styling Definitions
+    classDef tier1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1;
+    classDef tier2 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
+    classDef tier3 fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#9A3412;
+    classDef tier4 fill:#FCE4EC,stroke:#C2185B,stroke-width:3px,color:#880E4F;
+    subgraph Tier1 ["Tier 1: Foundational Mathematical & Signal Preliminaries"]
+        node_c_linear_algebra["Linear Algebra"]:::tier1
+        node_c_subspaces["Subspaces"]:::tier1
+        node_c_oblique_projection["Oblique Projection"]:::tier1
+        node_c_covariance_matrices["Covariance Matrices"]:::tier1
+        node_c_orthogonal_projection["Orthogonal Projection"]:::tier1
+        node_c_hypothesis_testing["Hypothesis Testing"]:::tier1
+        node_c_convex_optimization["Convex Optimization"]:::tier1
+    end
+    subgraph Tier3 ["Tier 3: Domain Concepts & Theoretical Setting"]
+        node_c_cognitive_radio["Cognitive Radio"]:::tier3
+        node_c_spectrum_sensing["Spectrum Sensing"]:::tier3
+        node_c_physical_layer_security["Physical Layer Security"]:::tier3
+        node_c_cognitive_radio_spectrum_sensing["Cognitive Radio Spectrum Sensing"]:::tier3
+        node_c_glrt["GLRT"]:::tier3
+        node_c_generalized_likelihood_ratio_test["Generalized Likelihood Ratio Test"]:::tier3
+        node_c_projection_based_jamming_cancellation["Projection-Based Jamming Cancellation"]:::tier3
+    end
+    subgraph Tier4 ["Tier 4: Target Paper Contribution & Innovations"]
+        node_c_jamming_cancellation["Jamming Cancellation"]:::tier4
+    end
+
+    %% Prerequisite Dependency Edges (Clean directed arrows)
+    node_c_linear_algebra --> node_c_subspaces
+    node_c_subspaces --> node_c_oblique_projection
+    node_c_oblique_projection --> node_c_covariance_matrices
+    node_c_orthogonal_projection --> node_c_hypothesis_testing
+    node_c_covariance_matrices --> node_c_orthogonal_projection
+    node_c_hypothesis_testing --> node_c_convex_optimization
+    node_c_glrt --> node_c_generalized_likelihood_ratio_test
+    node_c_cognitive_radio --> node_c_spectrum_sensing
+    node_c_physical_layer_security --> node_c_cognitive_radio_spectrum_sensing
+    node_c_spectrum_sensing --> node_c_physical_layer_security
+    node_c_convex_optimization --> node_c_cognitive_radio
+    node_c_projection_based_jamming_cancellation --> node_c_jamming_cancellation
+    node_c_generalized_likelihood_ratio_test --> node_c_projection_based_jamming_cancellation
+    node_c_cognitive_radio_spectrum_sensing --> node_c_glrt`,
+
+            "paper_ofdm_sec_graph.mmd": `flowchart TD
+    %% Styling Definitions
+    classDef tier1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1;
+    classDef tier2 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
+    classDef tier3 fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#9A3412;
+    classDef tier4 fill:#FCE4EC,stroke:#C2185B,stroke-width:3px,color:#880E4F;
+    subgraph Tier1 ["Tier 1: Foundational Mathematical & Signal Preliminaries"]
+        node_c_convex_optimization["Convex Optimization"]:::tier1
+        node_c_fourier_transform["Fourier Transform"]:::tier1
+        node_c_oblique_projection["Oblique Projection"]:::tier1
+    end
+    subgraph Tier3 ["Tier 3: Domain Concepts & Theoretical Setting"]
+        node_c_physical_layer_security["Physical Layer Security"]:::tier3
+        node_c_inverse_fast_fourier_transform["Inverse Fast Fourier Transform"]:::tier3
+        node_c_information_theory["Information Theory"]:::tier3
+        node_c_fft["FFT"]:::tier3
+        node_c_ifft["IFFT"]:::tier3
+        node_c_gradient_descent["Gradient Descent"]:::tier3
+        node_c_frequency_transform["Frequency Transform"]:::tier3
+        node_c_power_allocation["Power Allocation"]:::tier3
+        node_c_optimal_subcarrier_power_allocation["Optimal Subcarrier Power Allocation"]:::tier3
+    end
+    subgraph Tier4 ["Tier 4: Target Paper Contribution & Innovations"]
+        node_c_ofdm["OFDM"]:::tier4
+        node_c_secure_optimal_subcarrier_power["Secure Optimal Subcarrier Power"]:::tier4
+    end
+
+    %% Prerequisite Dependency Edges (Clean directed arrows)
+    node_c_convex_optimization --> node_c_fourier_transform
+    node_c_fourier_transform --> node_c_oblique_projection
+    node_c_ifft --> node_c_gradient_descent
+    node_c_fft --> node_c_ifft
+    node_c_gradient_descent --> node_c_frequency_transform
+    node_c_gradient_descent --> node_c_power_allocation
+    node_c_physical_layer_security --> node_c_inverse_fast_fourier_transform
+    node_c_information_theory --> node_c_fft
+    node_c_ofdm --> node_c_secure_optimal_subcarrier_power
+    node_c_oblique_projection --> node_c_physical_layer_security
+    node_c_optimal_subcarrier_power_allocation --> node_c_ofdm
+    node_c_inverse_fast_fourier_transform --> node_c_information_theory
+    node_c_frequency_transform --> node_c_ofdm
+    node_c_power_allocation --> node_c_optimal_subcarrier_power_allocation`,
+
+            "paper_hypergraph_graph.mmd": `flowchart TD
+    %% Styling Definitions
+    classDef tier1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1;
+    classDef tier2 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
+    classDef tier3 fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#9A3412;
+    classDef tier4 fill:#FCE4EC,stroke:#C2185B,stroke-width:3px,color:#880E4F;
+    subgraph Tier1 ["Tier 1: Foundational Mathematical & Signal Preliminaries"]
+        node_c_graph_theory["Graph Theory"]:::tier1
+    end
+    subgraph Tier3 ["Tier 3: Domain Concepts & Theoretical Setting"]
+        node_c_computational_complexity["Computational Complexity"]:::tier3
+        node_c_complexity_background["Complexity Background"]:::tier3
+        node_c_graph_traversal["Graph Traversal"]:::tier3
+        node_c_structural_graph_foundations["Structural Graph Foundations"]:::tier3
+    end
+    subgraph Tier4 ["Tier 4: Target Paper Contribution & Innovations"]
+        node_c_hypertree_decomposition["Hypertree Decomposition"]:::tier4
+        node_c_case_based_reasoning["Case-Based Reasoning"]:::tier4
+        node_c_hypergraph_reduction["Hypergraph Reduction"]:::tier4
+    end
+
+    %% Prerequisite Dependency Edges (Clean directed arrows)
+    node_c_graph_theory --> node_c_computational_complexity
+    node_c_hypertree_decomposition --> node_c_case_based_reasoning
+    node_c_graph_traversal --> node_c_structural_graph_foundations
+    node_c_computational_complexity --> node_c_complexity_background
+    node_c_case_based_reasoning --> node_c_hypergraph_reduction
+    node_c_complexity_background --> node_c_graph_traversal
+    node_c_structural_graph_foundations --> node_c_hypertree_decomposition`,
+
+            "sample_paper_viterbi_graph.mmd": `flowchart TD
+    %% Styling Definitions
+    classDef tier1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1;
+    classDef tier2 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
+    classDef tier3 fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#9A3412;
+    classDef tier4 fill:#FCE4EC,stroke:#C2185B,stroke-width:3px,color:#880E4F;
+    subgraph Tier2 ["Tier 2: Algorithmic & Communication Foundations"]
+        node_c_dynamic_programming["Dynamic Programming"]:::tier2
+        node_c_viterbi_algorithm["Viterbi Algorithm"]:::tier2
+    end
+    subgraph Tier3 ["Tier 3: Domain Concepts & Theoretical Setting"]
+        node_c_mathematical_preliminaries["Mathematical Preliminaries"]:::tier3
+    end
+    subgraph Tier4 ["Tier 4: Target Paper Contribution & Innovations"]
+        node_c_viterbi_decoding_algorithm["Viterbi Decoding Algorithm"]:::tier4
+        node_c_hidden_markov_models["Hidden Markov Models"]:::tier4
+        node_c_speech_recognition["Speech Recognition"]:::tier4
+    end
+
+    %% Prerequisite Dependency Edges (Clean directed arrows)
+    node_c_dynamic_programming --> node_c_viterbi_algorithm
+    node_c_viterbi_decoding_algorithm --> node_c_hidden_markov_models
+    node_c_viterbi_decoding_algorithm --> node_c_speech_recognition
+    node_c_mathematical_preliminaries --> node_c_viterbi_decoding_algorithm
+    node_c_viterbi_algorithm --> node_c_mathematical_preliminaries`
+        };
+
+        // Initialize Mermaid with standard default theme and native SVG text rendering
+        // htmlLabels: false guarantees SVG <text> elements locked at the exact dead-center of every node box!
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: false, // Pure SVG text: 100% immune to displacement bugs, text is ALWAYS centered inside rect!
+                curve: 'basis',
+                nodeSpacing: 45,
+                rankSpacing: 55
+            }
+        });
+
+        // Viewport Transform State
+        let currentScale = 1.0;
+        let posX = 0;
+        let posY = 0;
+        let isDragging = false;
+        let startMouseX = 0;
+        let startMouseY = 0;
+
+        const viewport = document.getElementById('viewport');
+        const transformLayer = document.getElementById('graph-transform-layer');
+        const outputElem = document.getElementById('mermaid-output');
+        const editor = document.getElementById('mmd-editor');
+        const badge = document.getElementById('active-filename');
+
+        function updateTransform() {
+            transformLayer.style.transform = `translate(${posX}px, ${posY}px) scale(${currentScale})`;
+        }
+
+        function zoom(delta) {
+            const newScale = Math.min(Math.max(currentScale + delta, 0.2), 3.5);
+            currentScale = Math.round(newScale * 100) / 100;
+            updateTransform();
+            showToast(`Zoom: ${Math.round(currentScale * 100)}%`);
+        }
+
+        function resetTransform() {
+            currentScale = 1.0;
+            posX = 0;
+            posY = 0;
+            updateTransform();
+            showToast("View Reset (100%)");
+        }
+
+        function fitToScreen() {
+            const svg = outputElem.querySelector('svg');
+            if (!svg) return;
+
+            let svgWidth = 0;
+            let svgHeight = 0;
+
+            // Check SVG viewBox first
+            if (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width > 0) {
+                svgWidth = svg.viewBox.baseVal.width;
+                svgHeight = svg.viewBox.baseVal.height;
+            } else {
+                try {
+                    const bbox = svg.getBBox();
+                    svgWidth = bbox.width;
+                    svgHeight = bbox.height;
+                } catch (e) {
+                    svgWidth = svg.clientWidth || 900;
+                    svgHeight = svg.clientHeight || 700;
+                }
+            }
+
+            const vpWidth = viewport.clientWidth - 80;
+            const vpHeight = viewport.clientHeight - 80;
+
+            if (svgWidth <= 0 || svgHeight <= 0) return;
+
+            const scaleX = vpWidth / (svgWidth + 60);
+            const scaleY = vpHeight / (svgHeight + 60);
+
+            // Fit to show the ENTIRE graph comfortably within the screen
+            currentScale = Math.min(Math.min(scaleX, scaleY), 1.05);
+            currentScale = Math.max(currentScale, 0.35);
+            currentScale = Math.round(currentScale * 100) / 100;
+
+            posX = 0;
+            posY = 0;
+            updateTransform();
+            showToast(`Fitted graph to screen (${Math.round(currentScale * 100)}%)`);
+        }
+
+        // Render Graph from Raw Code
+        async function renderMMD(code, filename = "custom_graph.mmd") {
+            try {
+                badge.innerText = filename;
+                editor.value = code;
+
+                // Reset position before measuring new graph
+                currentScale = 1.0;
+                posX = 0;
+                posY = 0;
+                updateTransform();
+
+                // Render into container
+                outputElem.removeAttribute('data-processed');
+                outputElem.innerHTML = `<div class="mermaid">${code}</div>`;
+                await mermaid.run({ nodes: outputElem.querySelectorAll('.mermaid') });
+
+                showToast(`Loaded: ${filename}`);
+                setTimeout(fitToScreen, 150);
+            } catch (err) {
+                console.error("Mermaid Render Error:", err);
+                outputElem.innerHTML = `<div style="color: #ef4444; font-family: monospace; padding: 2rem;">
+                    <h3>⚠️ Mermaid Render Error</h3>
+                    <p>${err.message || err}</p>
+                </div>`;
+                showToast("Error rendering Mermaid graph.");
+            }
+        }
+
+        // Selection Handlers
+        async function onSelectPreloadedFile() {
+            const sel = document.getElementById('preloaded-select');
+            const fname = sel.value;
+
+            // Try fetching from server first in case files were updated on disk
+            try {
+                const resp = await fetch(fname);
+                if (resp.ok) {
+                    const text = await resp.text();
+                    if (text && text.includes("flowchart")) {
+                        renderMMD(text, fname);
+                        return;
+                    }
+                }
+            } catch (e) {
+                // Fall back to preloaded embedded string
+            }
+
+            const code = preloadedFiles[fname];
+            if (code) {
+                renderMMD(code, fname);
+            }
+        }
+
+        function onLocalFileChosen(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const code = e.target.result;
+                renderMMD(code, file.name);
+            };
+            reader.readAsText(file);
+        }
+
+        function renderCustomCode() {
+            renderMMD(editor.value, "custom_edited.mmd");
+            toggleCodeDrawer();
+        }
+
+        function toggleCodeDrawer() {
+            document.getElementById('code-drawer').classList.toggle('open');
+        }
+
+        function copyMMDCode() {
+            navigator.clipboard.writeText(editor.value);
+            showToast("MMD code copied to clipboard!");
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 2400);
+        }
+
+        // Mouse Pan & Zoom Listeners
+        viewport.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.hud-controls') || e.target.closest('#code-drawer')) return;
+            isDragging = true;
+            startMouseX = e.clientX - posX;
+            startMouseY = e.clientY - posY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            posX = e.clientX - startMouseX;
+            posY = e.clientY - startMouseY;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomDelta = e.deltaY < 0 ? 0.12 : -0.12;
+            const newScale = Math.min(Math.max(currentScale + zoomDelta, 0.2), 3.5);
+            currentScale = Math.round(newScale * 100) / 100;
+            updateTransform();
+        }, { passive: false });
+
+        // Drag & Drop File onto Canvas
+        const dropIndicator = document.getElementById('drop-indicator');
+
+        viewport.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropIndicator.style.display = 'flex';
+        });
+
+        viewport.addEventListener('dragleave', (e) => {
+            if (e.relatedTarget === null || !viewport.contains(e.relatedTarget)) {
+                dropIndicator.style.display = 'none';
+            }
+        });
+
+        viewport.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropIndicator.style.display = 'none';
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    renderMMD(ev.target.result, file.name);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Initial Load
+        window.onload = () => {
+            onSelectPreloadedFile();
+        };
+    </script>
+</body>
+</html>
