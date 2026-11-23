@@ -531,6 +531,14 @@
                 <span>📂</span> Choose .mmd File...
             </button>
 
+            <!-- Export as Image Buttons -->
+            <button class="btn" style="background: #059669; border-color: #047857;" onclick="exportAsPNG()" title="Export high-resolution PNG image (2x Retina)">
+                <span>📸</span> Export PNG
+            </button>
+            <button class="btn" style="background: #334155; border-color: #475569;" onclick="exportAsSVG()" title="Export Scalable Vector Graphics (SVG)">
+                <span>📐</span> Export SVG
+            </button>
+
             <!-- Toggle Code Drawer -->
             <button class="btn" onclick="toggleCodeDrawer()">
                 <span>📝</span> View / Edit MMD Code
@@ -903,6 +911,147 @@
         function copyMMDCode() {
             navigator.clipboard.writeText(editor.value);
             showToast("MMD code copied to clipboard!");
+        }
+
+        // ==========================================
+        // IMAGE EXPORT FUNCTIONALITY (PNG & SVG)
+        // ==========================================
+        function getStandaloneSVG() {
+            const svg = outputElem.querySelector('svg');
+            if (!svg) return null;
+
+            const clone = svg.cloneNode(true);
+            clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+
+            let width = 0;
+            let height = 0;
+            if (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width > 0) {
+                width = svg.viewBox.baseVal.width;
+                height = svg.viewBox.baseVal.height;
+            } else {
+                try {
+                    const bbox = svg.getBBox();
+                    width = bbox.width;
+                    height = bbox.height;
+                } catch (e) {
+                    width = svg.clientWidth || 900;
+                    height = svg.clientHeight || 700;
+                }
+            }
+
+            clone.setAttribute('width', width);
+            clone.setAttribute('height', height);
+
+            // Embed all typography and tier styles directly into SVG <defs>
+            const defs = clone.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const styleElem = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+            styleElem.textContent = `
+                .node rect, .node polygon, .node circle { stroke-width: 2.5px !important; rx: 8px !important; ry: 8px !important; }
+                .node text, .node tspan { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important; font-size: 14px !important; font-weight: 700 !important; text-anchor: middle !important; dominant-baseline: central !important; }
+                .node.tier1 rect { fill: #E3F2FD !important; stroke: #1565C0 !important; }
+                .node.tier1 text, .node.tier1 tspan { fill: #0D47A1 !important; }
+                .node.tier2 rect { fill: #E8F5E9 !important; stroke: #2E7D32 !important; }
+                .node.tier2 text, .node.tier2 tspan { fill: #1B5E20 !important; }
+                .node.tier3 rect { fill: #FFF3E0 !important; stroke: #EA580C !important; }
+                .node.tier3 text, .node.tier3 tspan { fill: #9A3412 !important; }
+                .node.tier4 rect { fill: #FCE4EC !important; stroke: #C2185B !important; stroke-width: 3px !important; }
+                .node.tier4 text, .node.tier4 tspan { fill: #880E4F !important; font-weight: 800 !important; }
+                .cluster rect { rx: 12px !important; ry: 12px !important; stroke-width: 2px !important; stroke-dasharray: 6 4 !important; fill: #f8fafc !important; stroke: #cbd5e1 !important; }
+                #Tier1 rect { fill: #f8fbff !important; stroke: #93c5fd !important; }
+                #Tier2 rect { fill: #f8fdf9 !important; stroke: #86efac !important; }
+                #Tier3 rect { fill: #fffdfa !important; stroke: #fdba74 !important; }
+                #Tier4 rect { fill: #fdf8fb !important; stroke: #f472b6 !important; }
+                .cluster text, .cluster-label text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important; font-size: 13.5px !important; font-weight: 800 !important; text-transform: uppercase !important; dominant-baseline: central !important; }
+                #Tier1 text { fill: #1565C0 !important; }
+                #Tier2 text { fill: #2E7D32 !important; }
+                #Tier3 text { fill: #EA580C !important; }
+                #Tier4 text { fill: #BE185D !important; }
+                .edgePath path.path { stroke: #64748b !important; stroke-width: 2px !important; }
+                .edgePath marker path { fill: #64748b !important; stroke: #64748b !important; }
+                .edgeLabel { display: none !important; }
+            `;
+            defs.appendChild(styleElem);
+            if (!clone.querySelector('defs')) {
+                clone.insertBefore(defs, clone.firstChild);
+            }
+
+            // Clean white background rect behind the graph
+            const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bgRect.setAttribute('width', '100%');
+            bgRect.setAttribute('height', '100%');
+            bgRect.setAttribute('fill', '#ffffff');
+            clone.insertBefore(bgRect, clone.firstChild);
+
+            return { clone, width, height };
+        }
+
+        function exportAsSVG() {
+            const data = getStandaloneSVG();
+            if (!data) {
+                showToast("No graph available to export.");
+                return;
+            }
+            const svgString = new XMLSerializer().serializeToString(data.clone);
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const baseName = (badge.innerText || 'prerequisite_graph').replace(/\.[^/.]+$/, '');
+            a.download = `${baseName}.svg`;
+            a.href = url;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast(`Exported: ${baseName}.svg`);
+        }
+
+        function exportAsPNG() {
+            const data = getStandaloneSVG();
+            if (!data) {
+                showToast("No graph available to export.");
+                return;
+            }
+            const { clone, width, height } = data;
+            const svgString = new XMLSerializer().serializeToString(clone);
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+
+            img.onload = function() {
+                const padding = 50;
+                const scale = 2; // 2x High Resolution (Retina / Publication quality)
+                const canvas = document.createElement('canvas');
+                canvas.width = (width + padding * 2) * scale;
+                canvas.height = (height + padding * 2) * scale;
+                const ctx = canvas.getContext('2d');
+
+                // High resolution scaling
+                ctx.scale(scale, scale);
+
+                // Clean white background
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, width + padding * 2, height + padding * 2);
+
+                // Draw graph image centered with generous margins
+                ctx.drawImage(img, padding, padding, width, height);
+                URL.revokeObjectURL(url);
+
+                // Trigger PNG download
+                const pngUrl = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                const baseName = (badge.innerText || 'prerequisite_graph').replace(/\.[^/.]+$/, '');
+                a.download = `${baseName}.png`;
+                a.href = pngUrl;
+                a.click();
+                showToast(`Exported: ${baseName}.png (High-Res 2x)`);
+            };
+
+            img.onerror = function(err) {
+                console.error("PNG conversion error:", err);
+                URL.revokeObjectURL(url);
+                showToast("PNG export failed. You can export as SVG instead.");
+            };
+
+            img.src = url;
         }
 
         function toggleFullScreen() {
