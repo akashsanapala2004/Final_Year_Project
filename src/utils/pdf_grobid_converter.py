@@ -24,15 +24,48 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 DEFAULT_GROBID_URL = os.environ.get("GROBID_URL", "http://localhost:8070")
 
 
+def _sanitize_xml_text(text: str) -> str:
+    """Remove or replace characters that are invalid in XML 1.0."""
+    if not text:
+        return ""
+    # Map common font ligatures
+    text = (
+        text.replace("\x01", "fi")
+        .replace("\x02", "fl")
+        .replace("\x03", "ff")
+        .replace("\x04", "ffi")
+        .replace("\x05", "ffl")
+    )
+    # Map Windows-1252 control byte escapes
+    text = (
+        text.replace("\x96", "–")
+        .replace("\x97", "—")
+        .replace("\x91", "'")
+        .replace("\x92", "'")
+        .replace("\x93", '"')
+        .replace("\x94", '"')
+    )
+    # XML 1.0 legal characters: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+    return re.sub(
+        r"[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\U00010000-\U0010FFFF]",
+        "",
+        text,
+    )
+
+
 def _decode_pdf_string(raw: bytes) -> str:
-    """Decode PDF text string handling escape sequences."""
-    text = raw.decode("latin1", errors="ignore")
+    """Decode PDF text string handling escape sequences and encoding."""
+    try:
+        text = raw.decode("cp1252")
+    except Exception:
+        text = raw.decode("latin1", errors="ignore")
+
     # Replace standard PDF escapes
     text = text.replace(r"\n", "\n").replace(r"\r", "\r").replace(r"\t", "\t")
     text = text.replace(r"\(", "(").replace(r"\)", ")").replace(r"\\", "\\")
     # Handle octal escapes \ddd
     text = re.sub(r"\\([0-7]{1,3})", lambda m: chr(int(m.group(1), 8)), text)
-    return text.strip()
+    return _sanitize_xml_text(text).strip()
 
 
 class PDFStreamTextExtractor:
@@ -70,13 +103,19 @@ class PDFStreamTextExtractor:
                     if clean:
                         extracted_lines.append(clean)
 
-                # 2. Matches [(T) 10 (e) 10 (x) 10 (t)] TJ
+                # 2. Matches [(T) 10 (e) 10 (x) 10 (t)] TJ with displacement spacing
                 tj_array_matches = re.findall(rb"\[(.*?)\]\s*TJ", block)
                 for arr in tj_array_matches:
-                    parts = re.findall(rb"\((.*?)\)", arr)
-                    combined = "".join(_decode_pdf_string(p) for p in parts)
-                    if combined.strip():
-                        extracted_lines.append(combined.strip())
+                    tokens = re.findall(rb"\((.*?)\)|(-?\d+(?:\.\d+)?)", arr)
+                    line_parts: List[str] = []
+                    for s_part, num_disp in tokens:
+                        if s_part:
+                            line_parts.append(_decode_pdf_string(s_part))
+                        elif num_disp and float(num_disp) < -110:
+                            line_parts.append(" ")
+                    combined = "".join(line_parts).strip()
+                    if len(combined) > 2:
+                        extracted_lines.append(combined)
 
         # If no streams matched (e.g. uncompressed or unusual layout), look for literal strings
         if not extracted_lines:
@@ -175,7 +214,11 @@ class PDFGrobidConverter:
 
         out_file = self.output_dir / f"{p.stem}.tei.xml"
         if out_file.is_file() and not force_recompute:
-            return out_file
+            try:
+                ET.parse(out_file)
+                return out_file
+            except Exception:
+                pass  # Recompute if existing XML is corrupted or invalid
 
         # 1. Try Live GROBID REST Service
         tei_xml = self.grobid_client.process_fulltext_document(p)
@@ -236,22 +279,80 @@ class PDFGrobidConverter:
                 citations=[],
             )
 
-        # Extract Title (first non-empty line that isn't a single word)
-        title = lines[0]
-        if len(title.split()) < 2 and len(lines) > 1:
-            title = lines[1]
+        # Extract Title:
+        title = ""
+        metadata_prefixes = ("http", "doi:", "issn:", "vol.", "page", "received", "accepted", "published", "copyright", "©", "table", "figure")
+        standard_sec_names = {
+            "introduction",
+            "background",
+            "background & summary",
+            "background and summary",
+            "methods",
+            "methodology",
+            "data records",
+            "technical validation",
+            "usage notes",
+            "results",
+            "discussion",
+            "related work",
+            "conclusion",
+            "conclusions",
+        }
+
+        # 1. Check for "How to cite this article:" metadata block (typical in Nature, Springer, IEEE)
+        for i, l in enumerate(lines):
+            if "how to cite this article:" in l.lower():
+                parts = []
+                for j in range(i + 1, min(len(lines), i + 7)):
+                    nxt = lines[j].strip().strip("-–—").strip()
+                    if "," in nxt or "et al" in nxt.lower() or "sci. data" in nxt.lower() or "doi:" in nxt.lower() or len(nxt.split()) < 3:
+                        continue
+                    parts.append(nxt)
+                    if nxt.endswith(".") or len(parts) >= 2:
+                        break
+                if parts:
+                    title = " ".join(parts).strip(". ")
+                    break
+
+        # 2. Check for explicit "Data Descriptor:" or "Title:" indicators
+        if not title:
+            for line in lines:
+                clean_l = line.strip().strip("-–—").strip()
+                if clean_l.lower().startswith("data descriptor:"):
+                    cand = clean_l[len("data descriptor:"):].strip()
+                    if len(cand) > 10:
+                        title = cand
+                        break
+                if clean_l.lower().startswith("title:"):
+                    cand = clean_l[len("title:"):].strip()
+                    if len(cand) > 10:
+                        title = cand
+                        break
+
+        # 3. Fallback to first prominent title-like line that isn't a section heading
+        if not title:
+            for line in lines[:60]:
+                clean_l = line.strip().strip("-–—").strip()
+                if clean_l.lower() in standard_sec_names or any(clean_l.lower().startswith(p) for p in metadata_prefixes):
+                    continue
+                if len(clean_l.split()) >= 3 and len(clean_l) >= 15:
+                    title = clean_l
+                    break
+
+        if not title:
+            title = pdf_path.stem.replace("_", " ").title()
 
         # Extract Abstract
         abstract_paragraphs = []
         in_abstract = False
         remaining_lines = []
-        for line in lines[1:]:
+        for line in lines:
             l_low = line.lower()
             if "abstract" in l_low and len(line) < 30:
                 in_abstract = True
                 continue
             if in_abstract:
-                if any(re.match(r"^(\d+\.?|[A-Z]+\.?)\s+[A-Z]", line) for _ in [0]) or len(abstract_paragraphs) >= 3:
+                if any(re.match(r"^(\d+\.?|[A-Z]+\.?)\s+[A-Z]", line) for _ in [0]) or len(abstract_paragraphs) >= 4:
                     in_abstract = False
                     remaining_lines.append(line)
                 else:
@@ -288,7 +389,8 @@ class PDFGrobidConverter:
                 continue
 
             # Check section heading
-            if sec_header_pat.match(line) or (line.isupper() and len(line.split()) < 6 and len(line) > 3):
+            clean_hdr = line.strip().lower()
+            if sec_header_pat.match(line) or clean_hdr in standard_sec_names or (line.isupper() and len(line.split()) < 6 and len(line) > 3):
                 if current_paragraphs:
                     sections.append((current_heading, current_paragraphs))
                     current_paragraphs = []
@@ -320,7 +422,7 @@ class PDFGrobidConverter:
         formulas: List[Tuple[str, str, str]],
         citations: List[Dict[str, str]],
     ) -> str:
-        """Construct well-formed TEI-XML string."""
+        """Construct well-formed TEI-XML string with full XML 1.0 character sanitization."""
         root = ET.Element("TEI", xmlns="http://www.tei-c.org/ns/1.0")
 
         # Header
@@ -328,13 +430,13 @@ class PDFGrobidConverter:
         file_desc = ET.SubElement(header, "fileDesc")
         title_stmt = ET.SubElement(file_desc, "titleStmt")
         t_elem = ET.SubElement(title_stmt, "title", level="a", type="main")
-        t_elem.text = title
+        t_elem.text = _sanitize_xml_text(title)
 
         # Profile / Abstract
         profile = ET.SubElement(header, "profileDesc")
         abs_elem = ET.SubElement(profile, "abstract")
         abs_p = ET.SubElement(abs_elem, "p")
-        abs_p.text = abstract
+        abs_p.text = _sanitize_xml_text(abstract)
 
         # Body
         text_elem = ET.SubElement(root, "text")
@@ -343,17 +445,17 @@ class PDFGrobidConverter:
         for idx, (heading, paragraphs) in enumerate(sections, 1):
             div = ET.SubElement(body_elem, "div", n=str(idx))
             head = ET.SubElement(div, "head")
-            head.text = heading
+            head.text = _sanitize_xml_text(heading)
 
             for p_text in paragraphs:
                 p = ET.SubElement(div, "p")
-                p.text = p_text
+                p.text = _sanitize_xml_text(p_text)
 
             # Append any formulas associated with this section
             if idx == 2 or idx == 1:
                 for f_id, f_raw, f_latex in formulas:
-                    f_elem = ET.SubElement(div, "formula", attrib={"xml:id": f_id, "latex": f_latex})
-                    f_elem.text = f_raw
+                    f_elem = ET.SubElement(div, "formula", attrib={"xml:id": f_id, "latex": _sanitize_xml_text(f_latex)})
+                    f_elem.text = _sanitize_xml_text(f_raw)
 
         # Bibliography
         back_elem = ET.SubElement(text_elem, "back")
@@ -365,7 +467,7 @@ class PDFGrobidConverter:
                 b_struct = ET.SubElement(list_bibl, "biblStruct", attrib={"xml:id": c["id"]})
                 analytic = ET.SubElement(b_struct, "analytic")
                 c_title = ET.SubElement(analytic, "title", level="a")
-                c_title.text = c["text"]
+                c_title.text = _sanitize_xml_text(c["text"])
         else:
             # Default fallback citation
             b_struct = ET.SubElement(list_bibl, "biblStruct", attrib={"xml:id": "b0"})

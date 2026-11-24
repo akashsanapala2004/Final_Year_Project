@@ -252,6 +252,9 @@ DYNAMIC_STOP_WORDS = {
     "Simulation Results", "Future Work", "Our Method", "Our Proposed", "System Model",
     "Proposed Methodology", "Problem Formulation", "Signal Model", "Mathematical Model",
     "Experimental Setup", "Performance Comparison", "Prior Work",
+    "Data Records", "Technical Validation", "Usage Notes", "Background & Summary",
+    "Background And Summary", "Methods", "Data Citation", "Sample Characteristic",
+    "Open Access",
 }
 
 
@@ -356,6 +359,32 @@ class ConceptExtractorAgent:
                     aliases=m_aliases,
                     is_target_paper_contribution=is_contrib,
                 )
+
+        # 3b. Match CSO Ontology Topics directly across text sections
+        full_doc_text = (doc.title or "") + " " + (doc.abstract or "") + " " + " ".join(t for _, t in all_text_sections)
+        cso_matches = self.cso.extract_from_text(full_doc_text, max_ngram=4)
+        for topic in cso_matches:
+            topic_label = topic.label.title()
+            if topic_label in DYNAMIC_STOP_WORDS or len(topic.label) < 4:
+                continue
+            cid = self._to_concept_id(topic_label)
+            if topic_label not in extracted and cid not in [e.concept_id for e in extracted.values()]:
+                pat = re.compile(rf"\b{re.escape(topic.label)}\b", re.IGNORECASE)
+                secs_found = [sec_id for sec_id, txt in all_text_sections if pat.search(txt)]
+                # Filter: must appear in multiple sections or have multi-word depth
+                if len(secs_found) >= 2 or (len(topic.label.split()) >= 2 and len(secs_found) >= 1):
+                    is_contrib = self._is_potential_paper_contribution(topic_label, doc)
+                    extracted[topic_label] = ConceptEntity(
+                        concept_id=cid,
+                        name=topic_label,
+                        category=topic.category,
+                        confidence=0.92,
+                        source_sections=secs_found[:4] if secs_found else ["sec_abstract"],
+                        aliases=[topic.topic_id] + [eq.replace("_", " ").title() for eq in topic.equivalents[:2]],
+                        is_target_paper_contribution=is_contrib,
+                        cso_topic_id=topic.topic_id,
+                        cso_uri=topic.uri,
+                    )
 
         # 4. Ontology Identification and Classification via CSO.3.3.owl
         for ent in list(extracted.values()):

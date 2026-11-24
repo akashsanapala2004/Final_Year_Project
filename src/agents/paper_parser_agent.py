@@ -101,20 +101,27 @@ class PaperParserAgent:
         ]
         for c in candidates:
             if c.is_file():
-                return c
+                try:
+                    ET.parse(c)
+                    return c
+                except Exception:
+                    pass  # If file is invalid XML, proceed to check PDF sources
 
         # Check if corresponding PDF exists in raw_pdfs
         pdf_candidates = [
             self.data_dir / "raw_pdfs" / str(paper_input),
             self.data_dir / "raw_pdfs" / f"{paper_input}.pdf",
             self.data_dir / "raw_pdfs" / f"{p.stem}.pdf",
+            self.data_dir / "raw_pdfs" / p.name,
             Path(f"data/raw_pdfs/{paper_input}.pdf"),
+            Path(f"data/raw_pdfs/{p.stem}.pdf"),
+            Path(f"data/raw_pdfs/{p.name}"),
         ]
         for pdf_c in pdf_candidates:
             if pdf_c.is_file():
                 from src.utils.pdf_grobid_converter import PDFGrobidConverter
                 converter = PDFGrobidConverter(output_dir=self.grobid_dir)
-                return converter.convert_pdf_to_tei(pdf_c)
+                return converter.convert_pdf_to_tei(pdf_c, force_recompute=True)
 
         raise FileNotFoundError(f"Could not resolve paper XML or PDF for input: {paper_input}")
 
